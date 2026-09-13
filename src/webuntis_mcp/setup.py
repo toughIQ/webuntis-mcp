@@ -231,7 +231,7 @@ def _interactive_setup() -> None:
     class_name = _resolve_class(server, school, username, secret, child["id"])
     child_display = f"{child.get('firstName', '')} {child.get('lastName', '')}"
     if class_name:
-        child_display += f", class {class_name.upper()}"
+        child_display += f", {class_name.upper()}"
     print(f"Child: {child_display}")
 
     print()
@@ -364,7 +364,7 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
         print(f"Server: {server}")
         student_line = student
         if class_name:
-            student_line += f", class {class_name.upper()}"
+            student_line += f", {class_name.upper()}"
         print(f"Student: {student_line}")
         _save_config(server, school, args.username, args.secret, student)
 
