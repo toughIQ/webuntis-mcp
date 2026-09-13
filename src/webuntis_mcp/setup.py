@@ -11,7 +11,7 @@ from pathlib import Path
 
 import requests
 
-from .auth import AuthError, totp_login
+from .auth import AuthError, make_auth, totp_login
 from .config import CONFIG_FILE
 
 SCHOOL_SEARCH_URL = "https://schoolsearch.webuntis.com/schoolquery2"
@@ -56,6 +56,49 @@ def _test_login(server: str, school: str, username: str, secret: str) -> dict:
         "school_name": session.school_name,
         "children": session.children,
     }
+
+
+def _resolve_class(server: str, school: str, username: str, secret: str, student_id: int) -> str:
+    """Resolve the student's class name via a quick timetable call."""
+    from datetime import date, timedelta
+
+    today = date.today()
+    if today.weekday() >= 5:
+        today += timedelta(days=(7 - today.weekday()))
+
+    params = {
+        "id": student_id,
+        "type": "STUDENT",
+        "startDate": int(today.strftime("%Y%m%d")),
+        "endDate": int((today + timedelta(days=4)).strftime("%Y%m%d")),
+        "masterDataTimestamp": 0,
+        "timetableTimestamp": 0,
+        "timetableTimestamps": [],
+        "auth": make_auth(username, secret),
+    }
+    url = f"https://{server}/WebUntis/jsonrpc_intern.do?school={school}"
+    body = {
+        "id": "setup-resolve-class",
+        "method": "getTimetable2017",
+        "params": [params],
+        "jsonrpc": "2.0",
+    }
+    try:
+        resp = requests.post(
+            url, json=body,
+            headers={"Content-Type": "application/json", "User-Agent": "UntisMobileAndroid"},
+            timeout=20,
+        )
+        result = resp.json().get("result", {})
+        md = result.get("masterData", {})
+        klassen = {k["id"]: k["name"] for k in md.get("klassen", [])}
+        for p in result.get("timetable", {}).get("periods", []):
+            for elem in p.get("elements", []):
+                if elem.get("type") == "CLASS" and elem.get("id") in klassen:
+                    return klassen[elem["id"]]
+    except Exception:
+        pass
+    return ""
 
 
 def _format_mcp_config(server: str, school: str, username: str, secret: str, student: str) -> str:
@@ -168,7 +211,6 @@ def _interactive_setup() -> None:
     if len(children) == 1:
         child = children[0]
         student = child.get("firstName", "")
-        print(f"Child: {child.get('firstName', '')} {child.get('lastName', '')}")
     else:
         print("\nChildren linked to your account:")
         for i, c in enumerate(children, 1):
@@ -185,6 +227,12 @@ def _interactive_setup() -> None:
             except ValueError:
                 pass
             print("Invalid choice.")
+
+    class_name = _resolve_class(server, school, username, secret, child["id"])
+    child_display = f"{child.get('firstName', '')} {child.get('lastName', '')}"
+    if class_name:
+        child_display += f", class {class_name.upper()}"
+    print(f"Child: {child_display}")
 
     print()
     print("=" * 50)
@@ -288,6 +336,9 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
             names = [f"{c.get('firstName', '')} {c.get('lastName', '')}" for c in children]
             _error(f"Student '{student}' not found. Available: {', '.join(names)}", args.json)
 
+    child = next((c for c in children if c.get("firstName", "") == student), children[0])
+    class_name = _resolve_class(server, school, args.username, args.secret, child["id"])
+
     if args.json:
         _save_config(server, school, args.username, args.secret, student, quiet=True)
         output = {
@@ -298,6 +349,7 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
             "school": school,
             "username": args.username,
             "student": student,
+            "class": class_name.upper() if class_name else "",
             "mcp_config": {
                 "mcpServers": {
                     "webuntis-mcp": {
@@ -310,7 +362,10 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
     else:
         print(f"School: {school_data.get('displayName', school)}")
         print(f"Server: {server}")
-        print(f"Student: {student}")
+        student_line = student
+        if class_name:
+            student_line += f", class {class_name.upper()}"
+        print(f"Student: {student_line}")
         _save_config(server, school, args.username, args.secret, student)
 
 
