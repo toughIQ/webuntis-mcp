@@ -219,9 +219,9 @@ WebUntis uses role-based access control. Parent accounts (type 12, "Legal Guardi
 | Own child's timetable | ✅ Works | Via student ID from login response |
 | Own child's class timetable | ✅ Works | Includes all groups and subjects |
 | Any class's timetable | ✅ Works | Use `list_classes` + `get_class_timetable` with a class name |
-| Homework | ✅ Works | Via REST endpoint |
-| Exams | ✅ Works | Via REST endpoint |
-| Absences | ✅ Works | Read-only via REST endpoint |
+| Homework | ✅ Works | Via 2017 mobile API |
+| Exams | ✅ Works | Via 2017 mobile API |
+| Absences | ✅ Works | Read-only via 2017 mobile API |
 | Teacher list | ❌ Blocked | Teacher names come from timetable data instead |
 | Student list | ❌ Blocked | Student ID comes from login response instead |
 | Substitution list | ❌ Blocked | Changes are visible in timetable period data |
