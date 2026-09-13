@@ -7,10 +7,12 @@ testing credentials, and generating the MCP config block.
 import argparse
 import json
 import sys
+from pathlib import Path
 
 import requests
 
 from .auth import AuthError, totp_login
+from .config import CONFIG_FILE
 
 SCHOOL_SEARCH_URL = "https://schoolsearch.webuntis.com/schoolquery2"
 
@@ -188,14 +190,52 @@ def _interactive_setup() -> None:
     print("=" * 50)
     print("Setup complete!")
     print("=" * 50)
+
+    _offer_save(server, school, username, secret, student)
+
+
+def _save_config(server: str, school: str, username: str, secret: str, student: str, quiet: bool = False) -> None:
+    """Write config to the standard config file."""
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_FILE.write_text(_format_config_env(server, school, username, secret, student))
+    CONFIG_FILE.chmod(0o600)
+    if quiet:
+        return
+    print(f"\nConfig saved to: {CONFIG_FILE}")
+    print(f"Permissions set to 600 (owner-only read/write).")
     print()
-    print("Add this to your MCP client settings (Claude Code, Cursor, etc.):")
+    print("Next step: add webuntis-mcp to your AI client.")
     print()
-    print(_format_mcp_config(server, school, username, secret, student))
+    print("Claude Code:")
+    print('  claude mcp add webuntis-mcp webuntis-mcp')
     print()
-    print("Or save as ~/.config/webuntis-mcp/config.env:")
+    print("Or add this to your MCP client settings:")
     print()
-    print(_format_config_env(server, school, username, secret, student))
+    print('  {"mcpServers": {"webuntis-mcp": {"command": "webuntis-mcp"}}}')
+
+
+def _offer_save(server: str, school: str, username: str, secret: str, student: str) -> None:
+    """Ask the user whether to save the config file."""
+    print()
+    print(f"Save config to {CONFIG_FILE}? [Y/n] ", end="", flush=True)
+    choice = input().strip().lower()
+
+    if choice in ("", "y", "yes", "j", "ja"):
+        _save_config(server, school, username, secret, student)
+    else:
+        print()
+        print("Config not saved. You can configure manually:")
+        print()
+        print("Option 1: Create the config file yourself:")
+        print(f"  mkdir -p {CONFIG_FILE.parent}")
+        print(f"  cat > {CONFIG_FILE} << 'EOF'")
+        print(_format_config_env(server, school, username, secret, student), end="")
+        print("EOF")
+        print(f"  chmod 600 {CONFIG_FILE}")
+        print()
+        print("Option 2: Pass credentials as env vars in your MCP client settings:")
+        print()
+        print(_format_mcp_config(server, school, username, secret, student))
 
 
 def _non_interactive_setup(args: argparse.Namespace) -> None:
@@ -249,9 +289,11 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
             _error(f"Student '{student}' not found. Available: {', '.join(names)}", args.json)
 
     if args.json:
+        _save_config(server, school, args.username, args.secret, student, quiet=True)
         output = {
             "status": "ok",
             "school_display_name": school_data.get("displayName", ""),
+            "config_file": str(CONFIG_FILE),
             "server": server,
             "school": school,
             "username": args.username,
@@ -260,13 +302,6 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
                 "mcpServers": {
                     "webuntis-mcp": {
                         "command": "webuntis-mcp",
-                        "env": {
-                            "WEBUNTIS_SERVER": server,
-                            "WEBUNTIS_SCHOOL": school,
-                            "WEBUNTIS_USERNAME": args.username,
-                            "WEBUNTIS_SECRET": args.secret,
-                            "WEBUNTIS_STUDENT": student,
-                        },
                     }
                 }
             },
@@ -276,8 +311,7 @@ def _non_interactive_setup(args: argparse.Namespace) -> None:
         print(f"School: {school_data.get('displayName', school)}")
         print(f"Server: {server}")
         print(f"Student: {student}")
-        print()
-        print(_format_mcp_config(server, school, args.username, args.secret, student))
+        _save_config(server, school, args.username, args.secret, student)
 
 
 def _error(message: str, as_json: bool = False) -> None:
