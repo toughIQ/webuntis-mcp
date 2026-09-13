@@ -86,13 +86,19 @@ def format_absences(absences: list[Absence]) -> str:
 
 
 def format_school_info(info: SchoolInfo) -> str:
-    lines = [
+    lines = []
+    if info.student_name:
+        student_line = info.student_name
+        if info.student_class:
+            student_line += f", {info.student_class}"
+        lines.append(f"Student: {student_line}")
+    lines.extend([
         f"School: {info.school_name}",
         f"School year: {info.school_year}",
         f"Last data import: {info.last_import}",
         "",
         "Period times:",
-    ]
+    ])
 
     for slot in info.timegrid:
         lines.append(

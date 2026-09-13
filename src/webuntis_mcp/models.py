@@ -100,6 +100,8 @@ class Klasse:
 class SchoolInfo:
     school_name: str
     school_year: str
+    student_name: str = ""
+    student_class: str = ""
     timegrid: list[TimeSlot] = field(default_factory=list)
     holidays: list[Holiday] = field(default_factory=list)
     last_import: str = ""

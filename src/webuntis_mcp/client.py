@@ -385,6 +385,26 @@ class WebUntisClient:
                 return sy
         return school_years[-1]
 
+    def _resolve_student_class(self) -> str:
+        """Find the student's class name from timetable data."""
+        self._ensure_master_data()
+        lookups = self._get_lookups()
+        klassen = lookups.get("klassen", {})
+        today = date.today()
+        if today.weekday() >= 5:
+            today += timedelta(days=(7 - today.weekday()))
+        try:
+            raw_periods, _ = self._raw_timetable(
+                self._student_id, "STUDENT", today, today + timedelta(days=4)
+            )
+            for p in raw_periods:
+                for elem in p.get("elements", []):
+                    if elem.get("type") == "CLASS" and elem.get("id") in klassen:
+                        return klassen[elem["id"]].get("name", "")
+        except Exception:
+            pass
+        return ""
+
     def get_school_info(self) -> SchoolInfo:
         """Fetch aggregated school metadata from masterData."""
         self._ensure_master_data()
@@ -393,6 +413,7 @@ class WebUntisClient:
         sy = self._get_current_schoolyear()
         timegrid = self.get_timegrid()
         holidays = self.get_holidays()
+        student_class = self._resolve_student_class()
 
         last_import = ""
         ts = md.get("timeStamp", 0)
@@ -402,6 +423,8 @@ class WebUntisClient:
         return SchoolInfo(
             school_name=self.school_name,
             school_year=sy.get("name", ""),
+            student_name=self._student_name,
+            student_class=student_class.upper() if student_class else "",
             timegrid=timegrid,
             holidays=holidays,
             last_import=last_import,
