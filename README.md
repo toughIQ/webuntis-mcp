@@ -39,27 +39,42 @@ webuntis-mcp setup
 webuntis-mcp setup --school "My School" --username "parent@example.com" --secret "ABCDEF1234567890" --json
 ```
 
-The setup command searches the public WebUntis school directory, tests your login, resolves your child's name, and outputs a ready-to-paste config block.
+The setup command searches the public WebUntis school directory, tests your login, resolves your child's name and class, and saves the credentials to `~/.config/webuntis-mcp/config.env` (chmod 600).
 
 ### 2️⃣ Get Your QR Code Secret
+
+You'll need this during setup. To find it:
 
 1. Log in to WebUntis in your browser (e.g. `yourschool.webuntis.com`)
 2. Go to **Profile** (bottom left)
 3. Click the **"Freigaben"** tab (or "Shares" in English)
 4. Click **"Zugriff über Untis Mobile"** (or "Access via Untis Mobile")
-5. A QR code dialog appears with these fields:
-   - **Url** (your school's WebUntis server)
-   - **Schule / School** (your school's short name)
-   - **Benutzer / User** (your login)
-   - **Schlüssel / Key** (this is your secret, a 16-character code like `ABCDEF1234567890`)
-
-You need the **server**, **school name**, **username**, and **key** from this dialog.
+5. Copy the **Schlüssel / Key** value (a 16-character code like `ABCDEF1234567890`)
 
 ### 3️⃣ Add to Your AI Client
 
+After running `webuntis-mcp setup`, your credentials are stored in the config file. The MCP entry only needs the command, no env vars:
+
 **Claude Code / Claude CLI:**
 
-Add to your project or user settings:
+```bash
+claude mcp add webuntis-mcp webuntis-mcp
+```
+
+**Cursor / Windsurf / Other MCP Clients:**
+
+Add to your MCP settings:
+
+```json
+{"mcpServers": {"webuntis-mcp": {"command": "webuntis-mcp"}}}
+```
+
+See [AGENTS.md](AGENTS.md) for detailed instructions per client.
+
+<details>
+<summary>Manual configuration (without setup command)</summary>
+
+If you prefer not to use the setup wizard, pass credentials as env vars:
 
 ```json
 {
@@ -78,9 +93,8 @@ Add to your project or user settings:
 }
 ```
 
-**Cursor / Windsurf / Other MCP Clients:**
-
-Same configuration, adapted to your client's MCP settings format. See [AGENTS.md](AGENTS.md) for detailed instructions per client.
+You can find all values in the WebUntis QR code dialog (Profile > Freigaben > Untis Mobile).
+</details>
 
 ### 4️⃣ Verify
 
@@ -247,8 +261,8 @@ Walks you through:
 1. Searching for your school by name or city
 2. Entering your credentials (username + QR code secret)
 3. Testing the login
-4. Selecting your child (if multiple)
-5. Outputting the config block ready to paste
+4. Selecting your child (if multiple, shows name and class)
+5. Saving credentials to `~/.config/webuntis-mcp/config.env` (asks Y/n, default: save)
 
 ### Non-Interactive Mode
 
@@ -263,7 +277,7 @@ webuntis-mcp setup \
   --json
 ```
 
-Returns a JSON object with the resolved config:
+Saves the config file automatically and returns a JSON status object:
 
 ```json
 {
@@ -271,11 +285,12 @@ Returns a JSON object with the resolved config:
   "server": "example.webuntis.com",
   "school": "example",
   "student": "Max",
+  "class": "1A",
+  "config_file": "~/.config/webuntis-mcp/config.env",
   "mcp_config": {
     "mcpServers": {
       "webuntis-mcp": {
-        "command": "webuntis-mcp",
-        "env": { "..." }
+        "command": "webuntis-mcp"
       }
     }
   }
@@ -284,7 +299,7 @@ Returns a JSON object with the resolved config:
 
 On error, returns `{"status": "error", "error": "..."}` with a non-zero exit code.
 
-AI agents can run the setup command, parse the JSON output, and write the `mcp_config` block directly into the user's settings.
+AI agents can run the setup command and then add the simple `mcp_config` entry to the user's settings. No env vars needed since credentials are in the config file.
 
 ## ❓ FAQ
 
@@ -304,14 +319,26 @@ A: Set `WEBUNTIS_STUDENT` to the first name of the child you want data for. Curr
 A: No. The QR code secret (TOTP key) is sufficient for all read operations. Your password is never required.
 
 **Q: How often can I query the API?**
-A: WebUntis has rate limiting. Normal usage (a few queries per hour) is fine. Avoid polling more frequently than every 10 minutes. The `getLatestImportTime` endpoint tells you when data was last updated.
+A: WebUntis has rate limiting. Normal usage (a few queries per hour) is fine. Avoid polling more frequently than every 10 minutes.
 
 **Q: Can the school see that I'm using this?**
 A: WebUntis logs API access. Your queries appear as Untis Mobile app requests. This is the same as using the official app.
 
 ## 📋 Configuration Reference
 
-All configuration is via environment variables:
+The recommended way to configure is `webuntis-mcp setup`, which creates the config file automatically.
+
+**Config file** (created by setup): `~/.config/webuntis-mcp/config.env`
+
+```
+WEBUNTIS_SERVER=yourschool.webuntis.com
+WEBUNTIS_SCHOOL=yourschool
+WEBUNTIS_USERNAME=parent@example.com
+WEBUNTIS_SECRET=ABCDEF1234567890
+WEBUNTIS_STUDENT=Max
+```
+
+**All configuration variables:**
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -322,17 +349,7 @@ All configuration is via environment variables:
 | `WEBUNTIS_STUDENT` | Yes | Child's first name (for student resolution) |
 | `WEBUNTIS_PASSWORD` | No | Login password (not needed for read-only, reserved for future write support) |
 
-Alternatively, create a config file at `~/.config/webuntis-mcp/config.env` with the same key=value format:
-
-```
-WEBUNTIS_SERVER=yourschool.webuntis.com
-WEBUNTIS_SCHOOL=yourschool
-WEBUNTIS_USERNAME=parent@example.com
-WEBUNTIS_SECRET=ABCDEF1234567890
-WEBUNTIS_STUDENT=Max
-```
-
-Environment variables take precedence over the config file.
+Environment variables take precedence over the config file. This allows overriding individual values without editing the file.
 
 ## 🙏 Acknowledgments
 

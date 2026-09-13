@@ -51,8 +51,11 @@ webuntis-mcp setup \
   --json
 ```
 
-On success, the JSON output contains a `mcp_config` object ready to merge into
-the user's settings. On error, it returns `{"status": "error", "error": "..."}`.
+The setup command saves credentials to ~/.config/webuntis-mcp/config.env
+automatically (chmod 600). On success, the JSON output contains a
+`mcp_config` object with just `{"command": "webuntis-mcp"}` (no env vars
+needed since the config file handles credentials).
+On error, it returns `{"status": "error", "error": "..."}`.
 
 Ask the user for: their school name (or city), their WebUntis login email,
 their QR code secret (from WebUntis profile, Freigaben tab, Untis Mobile),
@@ -62,8 +65,8 @@ If setup succeeds, skip to Step 4.
 
 ## Step 2 (alternative): Gather Credentials Manually
 
-If the setup command is not available, the user needs to provide 5 values.
-All come from the WebUntis QR code dialog:
+Only needed if the setup command is not available. The user provides 5 values
+from the WebUntis QR code dialog:
 
 1. Log in to WebUntis in a browser
 2. Go to Profile (bottom left corner)
@@ -83,9 +86,27 @@ The user must provide all 5 values. Do not guess or fabricate any of them.
 
 ## Step 3: Configure the MCP Client
 
-### Claude Code / Claude CLI
+If you ran `webuntis-mcp setup` in Step 2, credentials are stored in the
+config file. The MCP entry only needs the command, no env vars.
 
-Add to the user's project settings (.claude/settings.json) or user settings:
+### After setup (recommended)
+
+Claude Code:
+
+```bash
+claude mcp add webuntis-mcp webuntis-mcp
+```
+
+Cursor (.cursor/mcp.json), Windsurf, or any MCP client:
+
+```json
+{"mcpServers": {"webuntis-mcp": {"command": "webuntis-mcp"}}}
+```
+
+### Manual configuration (without setup)
+
+If you skipped setup and gathered credentials manually in Step 2,
+pass them as env vars in the MCP config:
 
 ```json
 {
@@ -103,38 +124,6 @@ Add to the user's project settings (.claude/settings.json) or user settings:
   }
 }
 ```
-
-### Cursor
-
-Add to .cursor/mcp.json in the project root:
-
-```json
-{
-  "mcpServers": {
-    "webuntis-mcp": {
-      "command": "webuntis-mcp",
-      "env": {
-        "WEBUNTIS_SERVER": "<from step 2>",
-        "WEBUNTIS_SCHOOL": "<from step 2>",
-        "WEBUNTIS_USERNAME": "<from step 2>",
-        "WEBUNTIS_SECRET": "<from step 2>",
-        "WEBUNTIS_STUDENT": "<child's first name>"
-      }
-    }
-  }
-}
-```
-
-### Windsurf
-
-Add to the MCP configuration in Windsurf settings with the same structure
-as above.
-
-### Generic MCP Client
-
-Any MCP client that supports stdio transport can use this server.
-The command is `webuntis-mcp` and all configuration is passed via
-environment variables listed above.
 
 ## Step 4: Verify
 
@@ -187,8 +176,9 @@ All tools are read-only. No tool modifies any data on WebUntis.
 
 ## Security Notes
 
-- Credentials are passed as environment variables and used only to
-  authenticate with the school's WebUntis server
+- Credentials are stored in ~/.config/webuntis-mcp/config.env (chmod 600)
+  or passed as environment variables, and used only to authenticate with
+  the school's WebUntis server
 - No data is sent anywhere except to the configured WebUntis server
 - No telemetry or analytics
 - The TOTP secret should be treated like a password. Do not log it,
