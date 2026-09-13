@@ -47,7 +47,7 @@ webuntis-mcp setup \
   --school "School Name or City" \
   --username "parent@example.com" \
   --secret "ABCDEF1234567890" \
-  --student "Max" \
+  --student "kid1" \
   --json
 ```
 
@@ -80,7 +80,7 @@ from the WebUntis QR code dialog:
 | Schule | WEBUNTIS_SCHOOL | yourschool |
 | Benutzer | WEBUNTIS_USERNAME | parent@example.com |
 | Schluessel | WEBUNTIS_SECRET | ABCDEF1234567890 |
-| (child's first name) | WEBUNTIS_STUDENT | Max |
+| (child's first name) | WEBUNTIS_STUDENT | kid1 |
 
 The user must provide all 5 values. Do not guess or fabricate any of them.
 

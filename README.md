@@ -86,7 +86,7 @@ If you prefer not to use the setup wizard, pass credentials as env vars:
         "WEBUNTIS_SCHOOL": "yourschool",
         "WEBUNTIS_USERNAME": "parent@example.com",
         "WEBUNTIS_SECRET": "ABCDEF1234567890",
-        "WEBUNTIS_STUDENT": "ChildFirstName"
+        "WEBUNTIS_STUDENT": "kid1"
       }
     }
   }
@@ -139,7 +139,7 @@ This server uses the **2017 mobile API with per-request TOTP authentication**, t
 | `WEBUNTIS_SCHOOL` | QR code dialog: "Schule" field | `yourschool` |
 | `WEBUNTIS_USERNAME` | QR code dialog: "Benutzer" field | `parent@example.com` |
 | `WEBUNTIS_SECRET` | QR code dialog: "Schlüssel" field | `ABCDEF1234567890` |
-| `WEBUNTIS_STUDENT` | Your child's first name | `Max` |
+| `WEBUNTIS_STUDENT` | Your child's first name | `kid1` |
 
 If you have multiple children at the same school, `WEBUNTIS_STUDENT` selects which child's data to show. It matches against the first name.
 
@@ -165,7 +165,7 @@ client = WebUntisClient(
     school="yourschool",
     username="parent@example.com",
     secret="ABCDEF1234567890",
-    student="Max",
+    student="kid1",
 )
 client.login()
 
@@ -273,7 +273,7 @@ webuntis-mcp setup \
   --school "Example School" \
   --username "parent@example.com" \
   --secret "ABCDEF1234567890" \
-  --student "Max" \
+  --student "kid1" \
   --json
 ```
 
@@ -284,7 +284,7 @@ Saves the config file automatically and returns a JSON status object:
   "status": "ok",
   "server": "example.webuntis.com",
   "school": "example",
-  "student": "Max",
+  "student": "kid1",
   "class": "1A",
   "config_file": "~/.config/webuntis-mcp/config.env",
   "mcp_config": {
@@ -335,7 +335,7 @@ WEBUNTIS_SERVER=yourschool.webuntis.com
 WEBUNTIS_SCHOOL=yourschool
 WEBUNTIS_USERNAME=parent@example.com
 WEBUNTIS_SECRET=ABCDEF1234567890
-WEBUNTIS_STUDENT=Max
+WEBUNTIS_STUDENT=kid1
 ```
 
 **All configuration variables:**

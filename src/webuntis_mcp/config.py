@@ -1,7 +1,13 @@
 """Configuration loading for webuntis-mcp.
 
-Credentials are loaded from environment variables or a config file.
+Credentials are loaded from environment variables or config files.
 Never hardcoded, never stored in the repository.
+
+Supports multiple children via separate .env files in the config directory:
+  ~/.config/webuntis-mcp/kid1.env
+  ~/.config/webuntis-mcp/kid2.env
+
+A single config.env is also supported for backwards compatibility.
 """
 
 import os
@@ -9,7 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-CONFIG_FILE = Path.home() / ".config" / "webuntis-mcp" / "config.env"
+CONFIG_DIR = Path.home() / ".config" / "webuntis-mcp"
+CONFIG_FILE = CONFIG_DIR / "config.env"
 
 
 @dataclass
@@ -50,7 +57,19 @@ def _load_config_file(path: Path) -> dict[str, str]:
     return values
 
 
+def _config_from_values(values: dict[str, str]) -> WebUntisConfig:
+    return WebUntisConfig(
+        server=values.get("WEBUNTIS_SERVER", ""),
+        school=values.get("WEBUNTIS_SCHOOL", ""),
+        username=values.get("WEBUNTIS_USERNAME", ""),
+        secret=values.get("WEBUNTIS_SECRET", ""),
+        student=values.get("WEBUNTIS_STUDENT", ""),
+        password=values.get("WEBUNTIS_PASSWORD") or None,
+    )
+
+
 def load_config() -> WebUntisConfig:
+    """Load a single config (env vars take precedence over config file)."""
     file_values = _load_config_file(CONFIG_FILE)
 
     def get(key: str) -> str:
@@ -63,4 +82,52 @@ def load_config() -> WebUntisConfig:
         secret=get("WEBUNTIS_SECRET"),
         student=get("WEBUNTIS_STUDENT"),
         password=get("WEBUNTIS_PASSWORD") or None,
+    )
+
+
+def load_all_configs() -> dict[str, WebUntisConfig]:
+    """Load all child configs from env vars and config directory.
+
+    Returns a dict keyed by child name (lowercase first name).
+    """
+    configs: dict[str, WebUntisConfig] = {}
+
+    env_config = _config_from_env()
+    if env_config:
+        key = env_config.student.lower() or "default"
+        configs[key] = env_config
+
+    if not configs:
+        named_files = sorted(
+            f for f in CONFIG_DIR.glob("*.env")
+            if f.name != "config.env" and f.is_file()
+        )
+
+        if named_files:
+            for f in named_files:
+                values = _load_config_file(f)
+                config = _config_from_values(values)
+                if config.server and config.student:
+                    configs[config.student.lower()] = config
+        else:
+            config = _config_from_values(_load_config_file(CONFIG_FILE))
+            if config.server:
+                key = config.student.lower() or "default"
+                configs[key] = config
+
+    return configs
+
+
+def _config_from_env() -> WebUntisConfig | None:
+    """Load config from environment variables only."""
+    server = os.environ.get("WEBUNTIS_SERVER", "")
+    if not server:
+        return None
+    return WebUntisConfig(
+        server=server,
+        school=os.environ.get("WEBUNTIS_SCHOOL", ""),
+        username=os.environ.get("WEBUNTIS_USERNAME", ""),
+        secret=os.environ.get("WEBUNTIS_SECRET", ""),
+        student=os.environ.get("WEBUNTIS_STUDENT", ""),
+        password=os.environ.get("WEBUNTIS_PASSWORD") or None,
     )

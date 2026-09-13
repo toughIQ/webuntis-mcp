@@ -12,7 +12,7 @@ from pathlib import Path
 import requests
 
 from .auth import AuthError, make_auth, totp_login
-from .config import CONFIG_FILE
+from .config import CONFIG_DIR, CONFIG_FILE
 
 SCHOOL_SEARCH_URL = "https://schoolsearch.webuntis.com/schoolquery2"
 
@@ -242,15 +242,55 @@ def _interactive_setup() -> None:
     _offer_save(server, school, username, secret, student)
 
 
+def _child_config_path(student: str) -> Path:
+    """Get the config file path for a child."""
+    return CONFIG_DIR / f"{student.lower().strip()}.env"
+
+
+def _migrate_legacy_config(new_student: str) -> None:
+    """Migrate config.env to a named file if it exists."""
+    if not CONFIG_FILE.exists():
+        return
+    content = CONFIG_FILE.read_text()
+    existing_student = ""
+    for line in content.strip().splitlines():
+        if line.startswith("WEBUNTIS_STUDENT="):
+            existing_student = line.split("=", 1)[1].strip()
+            break
+    if not existing_student:
+        return
+    named_path = _child_config_path(existing_student)
+    if named_path.exists():
+        return
+    CONFIG_FILE.rename(named_path)
+
+
 def _save_config(server: str, school: str, username: str, secret: str, student: str, quiet: bool = False) -> None:
-    """Write config to the standard config file."""
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(_format_config_env(server, school, username, secret, student))
-    CONFIG_FILE.chmod(0o600)
+    """Write config for a child. Uses named files for multi-child support."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+    existing_named = [f for f in CONFIG_DIR.glob("*.env") if f.name != "config.env"]
+    if CONFIG_FILE.exists() and not existing_named:
+        _migrate_legacy_config(student)
+
+    target = _child_config_path(student)
+    target.write_text(_format_config_env(server, school, username, secret, student))
+    target.chmod(0o600)
+
+    if CONFIG_FILE.exists() and target != CONFIG_FILE:
+        CONFIG_FILE.unlink()
+
     if quiet:
         return
-    print(f"\nConfig saved to: {CONFIG_FILE}")
+    print(f"\nConfig saved to: {target}")
     print(f"Permissions set to 600 (owner-only read/write).")
+
+    all_configs = sorted(CONFIG_DIR.glob("*.env"))
+    if len(all_configs) > 1:
+        print(f"\nConfigured children ({len(all_configs)}):")
+        for f in all_configs:
+            print(f"  {f.stem}")
+
     print()
     print("Next step: add webuntis-mcp to your AI client.")
     print()

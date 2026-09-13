@@ -10,7 +10,7 @@ Can be used independently of the MCP server:
         school="yourschool",
         username="parent@example.com",
         secret="YOUR_QR_SECRET",
-        student="ChildFirstName",
+        student="kid1",
     )
     client.login()
     periods = client.get_timetable()
