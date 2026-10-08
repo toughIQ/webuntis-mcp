@@ -119,11 +119,17 @@ def totp_login(server: str, school: str, username: str, secret: str) -> SessionI
     else:
         person_type = elem_type or 12
 
+    person_id = user_data.get("elemId", 0)
+    children = user_data.get("children", [])
+    # Student accounts have no children; the student is their own subject.
+    if not children and person_type == 5 and person_id:
+        children = [{"id": person_id, "firstName": user_data.get("displayName", "")}]
+
     return SessionInfo(
         jsessionid=jsessionid,
         person_type=person_type,
-        person_id=user_data.get("elemId", 0),
-        children=user_data.get("children", []),
+        person_id=person_id,
+        children=children,
         school_name=user_data.get("schoolName", ""),
     )
 
